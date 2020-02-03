@@ -37,11 +37,6 @@ class Grid{
 
 	public void printGrid(){
 		print2DArray(grid);
-		/*for(int i=0;i<lines;i++){
-			for(int j=0;j<columns;j++)
-				System.out.print(grid[i][j]+" ");
-			System.out.println();
-		}*/
 	}
 	
 	public static void print2DArray(int[][] arr){
