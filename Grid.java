@@ -13,7 +13,12 @@ class Grid{
 	public static final int LD = 6;
 	public static final int CR = 7; // cross
 
-
+	
+	public static void fill2DArray(int[][] arr, int val){
+		for (int i = 0; i < arr.length; i++)
+			for (int j = 0; j < arr[0].length; j++)
+				arr[i][j] = val;
+	}
 	public static void randomize2DArray(int[][] arr){
 		for(int i=0; i<arr.length; i++)
 			for(int j=0; j<arr[0].length; j++)
@@ -40,99 +45,85 @@ class Grid{
 			for (int j=0; j<from[0].length; j++)
 				to[i][j] = from[i][j];
 	}
-		
-	public static void main(String[] args){
-		Random rng = new Random(6); // seeded RNG (to get the same random grid every time)
-		int i,j;
-		int lines = 20;
-		int columns = 50;
-		// if lines = 20, columns = 50 :
-		// seed 2 has a cycle of length 8
-		// seed 3 has a cycle of length 6
-		// seed 12 has a cycle of length 10
-		int[][] g = new int[lines][columns]; // grid
-		int[][] deg = new int[lines][columns]; // degrees
-		int[][] colors = new int[lines][columns]; // colors for connex components
-		int[][] h = new int[lines][columns]; // grid copy
-		int[][] m = new int[lines][columns]; // grid of zeroes for algorithms to memorize marked tiles
-		int connexComponentsTreated = 0;
-		int connexComponents; // needed ?
 
-		// generating a grid :
-		// in this case I'm trying to generate an "interesting grid" by making sure it has a degree 3 tile even after removing dead ends.
-		boolean foundDeg3AfterFiltering = false;
-		int numberIterations = 0;
-		while (!foundDeg3AfterFiltering){
-			numberIterations++;
-			randomize2DArray(g, rng);
-			copy2DArray(g,h);
-			for (i = 0; i < h.length; i++)
-				for (j = 0; j < h[0].length; j++)
-					filterLowDegree(h,i,j);
-			for (i = 0; i < h.length; i++)
-				for (j = 0; j < h[0].length; j++)
-					if (degree(h,i,j) >= 3)
-						foundDeg3AfterFiltering = true;
-		}
-		System.out.format("Found an adequate grid after %d iterations\n", numberIterations);
-
-		System.out.println("Printing the grid:");
-		print2DArray(g);
-		
-		// We can start our first algorithm here. Let's reinstantiate the structures we need that is not the grid itself.
-		h = new int[lines][columns];
-		m = new int[lines][columns];
-		colors = new int[lines][columns];
+	public static PointList alg1 (int[][] g){
+		int[][] h = new int[g.length][g[0].length];
+		int[][] m = new int[g.length][g[0].length];
+		int[][] colors = new int[g.length][g[0].length];
 		copy2DArray(g,h);
-		for (i = 0; i < h.length; i++)
-			for (j = 0; j < h[0].length; j++)
+		for (int i = 0; i < h.length; i++)
+			for (int j = 0; j < h[0].length; j++)
 				filterLowDegree(h,i,j);
-		System.out.println("Removed dead ends :");			
-		print2DArray(h);
-		System.out.println("Degrees:");
-		setDegrees(h,deg);	// This is for visual information. deg is not involved in the algorithm
-		print2DArray(deg);
-		System.out.println("Coloring connex components :");
 		colorConnexComponents(h, colors);
-		print2DArray(colors);
-		System.out.println("Finding the longest cycle :");
 		PointList bestChoices = new PointList();
 		PointList choices = new PointList();
 		int bestLength = 0;
-		for (i = 0; i < g.length; i++)
-			for (j = 0; j < g[0].length; j++)
+		int connexComponentsTreated = 0;
+		for (int i = 0; i < g.length; i++)
+			for (int j = 0; j < g[0].length; j++)
 				if (colors[i][j] == connexComponentsTreated + 1){
-					System.out.format("it's about to call the function at (%d, %d)\n", i, j);
 					connexComponentsTreated++;
 					choices = new PointList();
-					choices = findLongestCycleInConnexComponentUsingBacktracking(
-						h, m, i, j, 0, choices, choices, 0, 0);
-					System.out.format("best choices for this connex component : ");
-					choices.print();
+					//choices = findLongestCycleInConnexComponentUsingBacktracking(
+						//h, m, i, j, 0, choices, choices, 0, 0);
+					choices = findLongestCycleInConnexComponentUsingBacktracking_iterative(h, m, i, j, 0, choices, choices, 0, 0);
+					//choices.print();
 					if (bestLength < choices.length){
-						System.out.format("new best length, record it\n");
 						bestLength = choices.length;
 						bestChoices = choices;
 					}
 				}
-		System.out.format("printing best overall choices : ");
-		bestChoices.print();
-		bestChoices.printMoves();
-		System.out.println();
+		//System.out.format("printing best overall choices : ");
+		//bestChoices.print();
+		//bestChoices.printMoves();
+		//System.out.println();
+		return bestChoices;
+	}
 
-		// we can start our second algorithm here.
-		m = new int[lines][columns];
-		h = new int[lines][columns];
+	public static PointList alg2 (int[][] g){
+		int[][] m = new int[g.length][g[0].length];
+		int[][] h = new int[g.length][g[0].length];
 		copy2DArray(g,h);
-		bestChoices = new PointList();
-		choices = new PointList();
-		for (i = 0; i < h.length; i++)
-			for (j = 0; j < h[0].length; j++){
-				System.out.format("\nCALLING ON TILE (%d,%d)\n", i, j);
+		PointList bestChoices = new PointList();
+		PointList choices = new PointList();
+		for (int i = 0; i < h.length; i++)
+			for (int j = 0; j < h[0].length; j++)
 				bestChoices = findLongestCyclePassingThroughTileUsingDFS(h, m, i, j, 0, 0, choices, bestChoices);
+		return bestChoices;
+	}
+		
+	public static void main(String[] args){
+		//Random rng = new Random(6); // seeded RNG (to get the same random grid every time)
+
+		// benchmark first algorithm :
+		// instantiate the grid, randomize that 2D array, start a timer, call function that solves the grid, 
+		// stop timer, repeat with same size a few times, repeat with larger sizes.
+		int nb_exec = 20;
+		System.out.format("Performing benchmark (times in ms)...");
+		long[] exec_times_alg1 = new long[nb_exec];
+		long[] exec_times_alg2 = new long[nb_exec];
+		int[] lines_values = {2,10,20,100,200,1000};
+		int[] columns_values = {5,10,50,100,500,1000};
+		for (int j = 0; j < lines_values.length; j++){
+			System.out.format("\ngrid dimensions : %d %d\n", lines_values[j], columns_values[j]);
+			int[][] g = new int[lines_values[j]][columns_values[j]];
+			for (int i = 0; i < nb_exec; i++){
+				randomize2DArray(g); // if you want to fill the grid with random tiles
+				//fill2DArray(g, 7); // if you want to fill the grid with all the tiles pointing in all 4 directions
+				exec_times_alg1[i] = System.currentTimeMillis();
+				alg1(g);
+				exec_times_alg1[i] = System.currentTimeMillis() - exec_times_alg1[i];
+				exec_times_alg2[i] = System.currentTimeMillis();
+				alg2(g);
+				exec_times_alg2[i] = System.currentTimeMillis() - exec_times_alg2[i];
 			}
-		bestChoices.print();
-		bestChoices.printMoves();
+			System.out.print("alg 1 : ");
+			for (int i = 0; i < nb_exec; i++)
+				System.out.format("%3d ", exec_times_alg1[i]);
+			System.out.print("\nalg 2 : ");
+			for (int i = 0; i < nb_exec; i++)
+				System.out.format("%3d ", exec_times_alg2[i]);
+		}
 		System.out.println();
 	}
 	
@@ -231,9 +222,9 @@ class Grid{
 	public static PointList findLongestCyclePassingThroughTileUsingDFS(int[][] grid, int[][] visited, int x, int y, int fromDirection, int depth, PointList choicesMade, PointList bestChoicesMade){
 		if (visited[x][y] == -1){ // base case : we're back at the first tile.
 			if (depth > bestChoicesMade.length && depth >= 3){
-				System.out.format("depth %d>%d, bestChoicesMade : ", depth, bestChoicesMade.length);
+				//System.out.format("depth %d>%d, bestChoicesMade : ", depth, bestChoicesMade.length);
 				bestChoicesMade = choicesMade.copy(depth);
-				bestChoicesMade.print();
+				//bestChoicesMade.print();
 			}
 			return bestChoicesMade;
 		}
@@ -243,8 +234,8 @@ class Grid{
 			visited[x][y] = depth;
 		choicesMade = choicesMade.add(x,y,fromDirection);
 
-		System.out.format("choicesMade : ");
-		choicesMade.print();
+		//System.out.format("choicesMade : ");
+		//choicesMade.print();
 
 		if (connectsUp(grid,x,y) && visited[x-1][y] <= 0){
 			choicesMade.toDirection = 'U';
@@ -282,22 +273,6 @@ class Grid{
 	 * different past choices. When a neighboring tile that is not the previously visited tile is already visited, we found a cycle; if it's the longest cycle
 	 * found yet, we deep-copy the nodes of choicesMade that are in the cycle into bestChoicesMade. 
 	 * When all the possible lists of choices have been explored at the end of the last call, bestChoicesMade is returned.
-	 *
-	 * We call this algorithm on whichever tile comes first for each connex component when scanning the grid left-to-right, up-to-bottom.
-	 * If dead ends have been removed prior to this scan, then we know that first tile is gonna connect to exactly two other tiles, down and right.
-	 * This algorithm will explore all the choices starting right and then all the choices starting down.
-	 * That first tile is an articulation point iff removing it removes the existence of a path between its two neighbors, i.e. we end up with two connex
-	 * components. This is equivalent to saying that there is no cycle passing through that first tile.
-	 * It would be interesting to know these "first articulation points" in advance, because then we could delete them in a linear scan, 
-	 * each deletion followed by a dead end filtering on their two neighbors. However we have to make sure that the other vertices marked as articulation points
-	 * stay as articulation points.
-	 *
-	 * We could try to remove all the bridges too, being aware that this is becomes something about edges and not tiles. If we remove all the bridges, we end up
-	 * with just biconnected components, in which every tile is part of a cycle.
-	 * 
-	 * If the first tile is part of a cycle, then for any choice that begins to the right is the reverse of a certain choice that begins to the left 
-	 * (Not true ? You can find cycles that don't connect back to the starting point ? but whether you start going right or down, you should be able to explore
-	 * every cycle that that biconnected component has access to I think ?)
 	 */
 	public static PointList findLongestCycleInConnexComponentUsingBacktracking(
 	int[][] grid,
@@ -393,6 +368,132 @@ class Grid{
 		return bestChoicesMade;
 	}
 
+	
+	// conversion of findLongestCycleInConnexComponentUsingBacktracking into an iterative function.
+	// As lazy as possible, no particular effort spent toward simplifications. Advantage : the conversion process we used is more obvious.
+	// Basically we wrapped most of the code with a while(true) so that we can jump back to the beginning using breaks and a label.
+	// In C we can use goto to jump at any label without having to wrap everything in a loop, which is arguably simpler.
+	public static PointList findLongestCycleInConnexComponentUsingBacktracking_iterative(
+	int[][] grid,
+	int[][] visited, 	// not visited iff 0 ; nth visited iff n (>= 1)
+	int xToVisit,
+	int yToVisit,
+	int fromDirection,	// 0 at initial call, otherwise it should be one of the following :  'U', 'R', 'L', 'D'
+	PointList choicesMade,	
+	PointList bestChoicesMade,
+	int currentLength,	// 0 at the initial call. Should be incremented every time we mark a new tile.
+	int bestLength)		// 0 at the initial call
+	{
+		simRecursion:
+		while(true){
+			// let's execute the choice we're given no matter what.
+			currentLength++;
+			visited[xToVisit][yToVisit] = currentLength;
+			choicesMade = choicesMade.add(xToVisit, yToVisit, fromDirection); 
+			// does the current choice directly yield a cycle ? is it the best yet ?
+			if (currentLength > bestLength){
+				// yes iff we can connect to a previously visited neighbor that is "old enough".
+				// let's check each of the 4 neighbors. There may be a tile that we just came from, we'll make sure to fail the test for that one.
+				if (connectsUp(grid,xToVisit,yToVisit) && visited[xToVisit-1][yToVisit] > 0 && currentLength - visited[xToVisit-1][yToVisit] + 1 > bestLength
+				&& fromDirection != 'U'){
+					bestLength = currentLength - visited[xToVisit-1][yToVisit] + 1;
+					choicesMade.toDirection = 'U';
+					bestChoicesMade = choicesMade.copy(currentLength - visited[xToVisit-1][yToVisit] + 1);
+				}
+				if (connectsRight(grid,xToVisit,yToVisit) && visited[xToVisit][yToVisit+1] > 0 && currentLength - visited[xToVisit][yToVisit+1] + 1 > bestLength
+				&& fromDirection != 'R' ){
+					bestLength = currentLength - visited[xToVisit][yToVisit+1] + 1;
+					choicesMade.toDirection = 'R';
+					bestChoicesMade = choicesMade.copy(currentLength - visited[xToVisit][yToVisit+1] + 1);
+				}
+				if (connectsLeft(grid,xToVisit,yToVisit) && visited[xToVisit][yToVisit-1] > 0 && currentLength - visited[xToVisit][yToVisit-1] + 1 > bestLength
+				&& fromDirection != 'L' ){
+					bestLength = currentLength - visited[xToVisit][yToVisit-1] + 1;
+					choicesMade.toDirection = 'L';
+					bestChoicesMade = choicesMade.copy(currentLength - visited[xToVisit][yToVisit-1] + 1);
+				}
+				if (connectsDown(grid,xToVisit,yToVisit) && visited[xToVisit+1][yToVisit] > 0 && currentLength - visited[xToVisit+1][yToVisit] + 1 > bestLength
+				&& fromDirection != 'D' ){
+					bestLength = currentLength - visited[xToVisit+1][yToVisit] + 1;
+					choicesMade.toDirection = 'D';
+					bestChoicesMade = choicesMade.copy(currentLength - visited[xToVisit+1][yToVisit] + 1);
+				}
+			}
+			// can we go further to an unvisited tile ? Does it require making a choice ?
+			// the order in which we consider these options should matter in order to properly backtrack after.
+			if (connectsUp(grid,xToVisit,yToVisit) && visited[xToVisit-1][yToVisit] == 0){
+				choicesMade.toDirection = 'U';
+				//return findLongestCycleInConnexComponentUsingBacktracking(grid, visited, xToVisit-1, yToVisit, 'D', choicesMade, bestChoicesMade, currentLength, bestLength);
+				xToVisit--;
+				fromDirection = 'D';
+				break simRecursion;
+			}
+			if (connectsRight(grid,xToVisit,yToVisit) && visited[xToVisit][yToVisit+1] == 0){
+				choicesMade.toDirection = 'R';
+				//return findLongestCycleInConnexComponentUsingBacktracking(grid, visited, xToVisit, yToVisit+1, 'L', choicesMade, bestChoicesMade, currentLength, bestLength);
+				yToVisit++;
+				fromDirection = 'L';
+				break simRecursion;
+			}
+			if (connectsLeft(grid,xToVisit,yToVisit) && visited[xToVisit][yToVisit-1] == 0){
+				choicesMade.toDirection = 'L';
+				//return findLongestCycleInConnexComponentUsingBacktracking(grid, visited, xToVisit, yToVisit-1, 'R', choicesMade, bestChoicesMade, currentLength, bestLength);
+				yToVisit--;
+				fromDirection = 'R';
+				break simRecursion;
+			}
+			if (connectsDown(grid,xToVisit,yToVisit) && visited[xToVisit+1][yToVisit] == 0){
+				choicesMade.toDirection = 'D';
+				//return findLongestCycleInConnexComponentUsingBacktracking(grid, visited, xToVisit+1, yToVisit, 'U', choicesMade, bestChoicesMade, currentLength, bestLength);
+				xToVisit++;
+				fromDirection = 'U';
+				break simRecursion;
+			}
+			// if not we must backtrack if possible. Let's cancel the last choice :
+			// We have choicesMade.next == null iff the list is "empty". In that case, then we cannot cancel any choice.
+			while (choicesMade.next != null){
+				visited[choicesMade.x][choicesMade.y] = 0;
+				choicesMade = choicesMade.delete();
+				currentLength--;
+				// choicesMade was already visited. choicesMade.toDirection also indicates a visited tile.
+				// is choicesMade pointing to an unvisited tile ?
+				if (choicesMade.toDirection == 'U'){ // we want to see if the tile connects right, left or down.
+					if (connectsRight(grid, choicesMade.x, choicesMade.y) && choicesMade.fromDirection != 'R'){
+						choicesMade.toDirection = 'R';
+						//return findLongestCycleInConnexComponentUsingBacktracking(grid, visited, choicesMade.x, choicesMade.y+1, 'L', choicesMade, bestChoicesMade, currentLength, bestLength);
+						xToVisit = choicesMade.x;
+						yToVisit = choicesMade.y+1;
+						fromDirection = 'L';
+						break simRecursion;
+					}
+					choicesMade.toDirection = 'R';
+				}
+				if (choicesMade.toDirection == 'R'){ // we want to see if the tile connects left or down.
+					if (connectsLeft(grid, choicesMade.x, choicesMade.y) && choicesMade.fromDirection != 'L'){
+						choicesMade.toDirection = 'L';
+						//return findLongestCycleInConnexComponentUsingBacktracking(grid, visited, choicesMade.x, choicesMade.y-1, 'R', choicesMade, bestChoicesMade, currentLength, bestLength);
+						xToVisit = choicesMade.x;
+						yToVisit = choicesMade.y-1;
+						fromDirection = 'R';
+						break simRecursion;
+					}
+					choicesMade.toDirection = 'L';
+				}
+				if (choicesMade.toDirection == 'L'){ // we want to see if the tile connects down.
+					if (connectsDown(grid, choicesMade.x, choicesMade.y) && choicesMade.fromDirection != 'D'){
+						choicesMade.toDirection = 'D';
+						//return findLongestCycleInConnexComponentUsingBacktracking(grid, visited, choicesMade.x+1, choicesMade.y, 'U', choicesMade, bestChoicesMade, currentLength, bestLength);
+						xToVisit = choicesMade.x+1;
+						yToVisit = choicesMade.y;
+						fromDirection = 'U';
+						break simRecursion;
+					}
+				}
+			}
+			break;
+		}
+		return bestChoicesMade;
+	}
 }
 
 class PointList{
@@ -450,15 +551,3 @@ class PointList{
 		System.out.println();
 	}
 }
-
-
-/*
- * idea : for each tile, memorize biggest cycle when going left, the biggest cycle when going right, etc. (doesn't make much sense, but maybe the ideas of dynamic programming can lead to something new ?)
- * idea 2 : start at the most upper-left tile ; find the biggest cycle passing through that tile (i.e. longest path from its down tile to its right tile), then recurse on the rest
- * of the tiles after deleting the first one (we can also filter dead ends on its neighbors after its deletion). (should be easy provided we have an algorithm for longest path...)
- * idea 3 : divide and conquer (hard ?)
- * idea 4 : for a really slow but simple algorithm, use some version of DFS on all the vertices.
- * idea 5 : look up how to find bridges and/or articulation points. a connected graph should decompose into a tree of biconnected components called the block-cut tree of the graph. The blocks are attached to each other at shared vertices called articulation points. A cycle is always contained within a single biconnected component of this tree, because a cycle graph is biconnected. Every vertex of the grid should be within a cycle iff it is part of a biconnected component of more than 2 vertices, because if the graph is biconnected then by definition it remains connected after the removal of that vertex. That means it's possible to take two neighbors
- * of that vertex such that there is another path between those, i.e. the vertex is in a cycle.
- * idea 6 : can we use some kind of random algorithm ?
- */
